@@ -394,6 +394,17 @@ class QReader:
                         results=decodedQR,
                     )
 
+                decodedQR = self.__remove_middle_cross(rescaled_image)
+                if len(decodedQR) > 0:
+                    return wrap(
+                        scale_factor=scale_factor,
+                        corrections=label,
+                        flavor="original",
+                        blur_kernel_sizes=None,
+                        image=rescaled_image,
+                        results=decodedQR,
+                  )
+
         return []
 
     def __correct_perspective(
@@ -484,3 +495,18 @@ class QReader:
             if len(decodedQR) > 0:
                 return decodedQR
         return []
+
+    def __remove_middle_cross(self, image: np.ndarray) -> list[Decoded]:
+        """Swiss QR code - remove central cross which breaks decoding in pyzbar.
+
+        It has a white cross on black square background with size around 10% of the QR code.
+        Given already segmented QR code, fill the inner square with black.
+        """
+        image_nocross = image.copy()
+        height, width = image.shape[:2]
+        center_x, center_y = width // 2, height // 2
+        radius = round((width + height) * 0.5 * 0.05)
+        image_nocross[
+            center_y - radius : center_y + radius, center_x - radius : center_x + radius
+        ] = 0
+        return decodeQR(image=image_nocross, symbols=[ZBarSymbol.QRCODE])
